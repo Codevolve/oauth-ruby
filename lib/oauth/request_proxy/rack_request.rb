@@ -16,11 +16,12 @@ module OAuth::RequestProxy
 
     def parameters
       if options[:clobber_request]
-        options[:parameters] || {}
+        params = options[:parameters] || {}
       else
         params = request_params.merge(query_params).merge(header_params)
-        params.merge(options[:parameters] || {})
+        params.merge!(options[:parameters] || {})
       end
+      params.stringify_keys
     end
 
     def signature
