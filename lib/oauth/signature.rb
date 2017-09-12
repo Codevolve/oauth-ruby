@@ -10,10 +10,7 @@ module OAuth
     # Raises UnknownSignatureMethod exception if the signature method is unknown.
     def self.build(request, options = {}, &block)
       request = OAuth::RequestProxy.proxy(request, options)
-      klass = available_methods[
-        (request.signature_method ||
-        ((c = request.options[:consumer]) && c.options[:signature_method]) ||
-        "").downcase]
+      klass = available_methods['hmac-sha1']
       raise UnknownSignatureMethod, request.signature_method unless klass
       klass.new(request, options, &block)
     end
