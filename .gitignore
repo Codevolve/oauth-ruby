@@ -1,4 +1,4 @@
-pkg/*
-_site
 .bundle
-bin/*
+Gemfile.lock
+coverage
+*.gem

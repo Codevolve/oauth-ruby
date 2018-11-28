@@ -8,9 +8,9 @@ require 'cgi'
 module OAuth
   class Consumer
     # determine the certificate authority path to verify SSL certs
-    CA_FILES = %w(/etc/ssl/certs/ca-certificates.crt /usr/share/curl/curl-ca-bundle.crt)
+    CA_FILES = %W(#{ENV['SSL_CERT_FILE']} /etc/ssl/certs/ca-certificates.crt /etc/pki/tls/certs/ca-bundle.crt /usr/share/curl/curl-ca-bundle.crt)
     CA_FILES.each do |ca_file|
-      if File.exists?(ca_file)
+      if File.exist?(ca_file)
         CA_FILE = ca_file
         break
       end
@@ -42,6 +42,13 @@ module OAuth
 
       # Add a custom ca_file for consumer
       # :ca_file       => '/etc/certs.pem'
+
+      # Possible values:
+      #
+      # nil, false - no debug output
+      # true - uses $stdout
+      # some_value - uses some_value
+      :debug_output => nil,
 
       :oauth_version => "1.0"
     }
@@ -85,6 +92,18 @@ module OAuth
     # The default http method
     def http_method
       @http_method ||= @options[:http_method] || :post
+    end
+
+    def debug_output
+      @debug_output ||= begin
+        case @options[:debug_output]
+        when nil, false
+        when true
+          $stdout
+        else
+          @options[:debug_output]
+        end
+      end
     end
 
     # The HTTP object for the site. The HTTP Object is what you get when you do Net::HTTP.new
@@ -191,6 +210,7 @@ module OAuth
 
     # Creates a request and parses the result as url_encoded. This is used internally for the RequestToken and AccessToken requests.
     def token_request(http_method, path, token = nil, request_options = {}, *arguments)
+      request_options[:token_request] ||= true
       response = request(http_method, path, token, request_options, *arguments)
       case response.code.to_i
 
@@ -209,7 +229,7 @@ module OAuth
         end
       when (300..399)
         # this is a redirect
-        uri = URI.parse(response.header['location'])
+        uri = URI.parse(response['location'])
         response.error! if uri.path == path # careful of those infinite redirects
         self.token_request(http_method, uri.path, token, request_options, arguments)
       when (400..499)
@@ -234,8 +254,8 @@ module OAuth
     end
 
     def request_endpoint
-  return nil if @options[:request_endpoint].nil?
-  @options[:request_endpoint].to_s
+      return nil if @options[:request_endpoint].nil?
+      @options[:request_endpoint].to_s
     end
 
     def scheme
@@ -320,6 +340,8 @@ module OAuth
 
       http_object.read_timeout = http_object.open_timeout = @options[:timeout] || 30
       http_object.open_timeout = @options[:open_timeout] if @options[:open_timeout]
+      http_object.ssl_version = @options[:ssl_version] if @options[:ssl_version]
+      http_object.set_debug_output(debug_output) if debug_output
 
       http_object
     end
@@ -328,13 +350,15 @@ module OAuth
     def create_http_request(http_method, path, *arguments)
       http_method = http_method.to_sym
 
-      if [:post, :put].include?(http_method)
+      if [:post, :put, :patch].include?(http_method)
         data = arguments.shift
       end
 
       # if the base site contains a path, add it now
-      uri = URI.parse(site)
-      path = uri.path + path if uri.path && uri.path != '/'
+      # only add if the site host matches the current http object's host
+      # (in case we've specified a full url for token requests)
+      uri  = URI.parse(site)
+      path = uri.path + path if uri.path && uri.path != '/' && uri.host == http.address
 
       headers = arguments.first.is_a?(Hash) ? arguments.shift : {}
 
@@ -344,6 +368,9 @@ module OAuth
         request["Content-Length"] = '0' # Default to 0
       when :put
         request = Net::HTTP::Put.new(path,headers)
+        request["Content-Length"] = '0' # Default to 0
+      when :patch
+        request = Net::HTTP::Patch.new(path,headers)
         request["Content-Length"] = '0' # Default to 0
       when :get
         request = Net::HTTP::Get.new(path,headers)

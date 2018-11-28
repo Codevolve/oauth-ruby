@@ -1,11 +1,35 @@
 require 'active_support'
+require "active_support/version"
 require 'action_controller'
-require 'action_controller/request'
 require 'uri'
+
+if
+  Gem::Version.new(ActiveSupport::VERSION::STRING) < Gem::Version.new("3")
+then # rails 2.x
+  require 'action_controller/request'
+  unless ActionController::Request::HTTP_METHODS.include?("patch")
+    ActionController::Request::HTTP_METHODS << "patch"
+    ActionController::Request::HTTP_METHOD_LOOKUP["PATCH"] = :patch
+    ActionController::Request::HTTP_METHOD_LOOKUP["patch"] = :patch
+  end
+
+elsif
+  Gem::Version.new(ActiveSupport::VERSION::STRING) < Gem::Version.new("4")
+then # rails 3.x
+  require 'action_dispatch/http/request'
+  unless ActionDispatch::Request::HTTP_METHODS.include?("patch")
+    ActionDispatch::Request::HTTP_METHODS << "patch"
+    ActionDispatch::Request::HTTP_METHOD_LOOKUP["PATCH"] = :patch
+    ActionDispatch::Request::HTTP_METHOD_LOOKUP["patch"] = :patch
+  end
+
+else # rails 4.x and later - already has patch
+  require 'action_dispatch/http/request'
+end
 
 module OAuth::RequestProxy
   class ActionControllerRequest < OAuth::RequestProxy::Base
-    proxies(defined?(ActionController::AbstractRequest) ? ActionController::AbstractRequest : ActionController::Request)
+    proxies(defined?(ActionDispatch::AbstractRequest) ? ActionDispatch::AbstractRequest : ActionDispatch::Request)
 
     def method
       request.method.to_s.upcase
@@ -43,7 +67,7 @@ module OAuth::RequestProxy
 
       params.
         join('&').split('&').
-        reject(&:blank?).
+        reject { |s| s.match(/\A\s*\z/) }.
         map { |p| p.split('=').map{|esc| CGI.unescape(esc)} }.
         reject { |kv| kv[0] == 'oauth_signature'}
     end

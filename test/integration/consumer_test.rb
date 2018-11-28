@@ -1,7 +1,7 @@
 require File.expand_path('../../test_helper', __FILE__)
 
 module Integration
-  class ConsumerTest < Test::Unit::TestCase
+  class ConsumerTest < Minitest::Test
     def setup
       @consumer=OAuth::Consumer.new(
           'consumer_key_86cad9', '5888bf0345e5d237',
@@ -39,7 +39,7 @@ module Integration
       token = OAuth::ConsumerToken.new(consumer, 'token_411a7f', '3196ffd991c8ebdb')
       token.sign!(request, {:nonce => @nonce, :timestamp => @timestamp})
 
-      assert_no_match( /oauth_signature_method="HMAC-SHA1"/, request['authorization'])
+      refute_match( /oauth_signature_method="HMAC-SHA1"/, request['authorization'])
       assert_match(    /oauth_signature_method="PLAINTEXT"/, request['authorization'])
     end
 
@@ -52,7 +52,7 @@ module Integration
       request = Net::HTTP::Get.new('/')
       signature_base_string = consumer.signature_base_string(request)
 
-      assert_no_match( /HMAC-SHA1/, signature_base_string)
+      refute_match( /HMAC-SHA1/, signature_base_string)
       assert_equal( "#{consumer.secret}&", signature_base_string)
     end
 
@@ -86,8 +86,8 @@ module Integration
 
       assert_equal 'POST', request.method
       assert_equal '/test', request.path
-      assert_match /key=value&oauth_consumer_key=consumer_key_86cad9&oauth_nonce=225579211881198842005988698334675835446&oauth_signature=26g7wHTtNO6ZWJaLltcueppHYiI%3[Dd]&oauth_signature_method=HMAC-SHA1&oauth_timestamp=1199645624&oauth_token=token_411a7f&oauth_version=1.0/, request.body.split("&").sort.join("&")
-      assert_equal nil, request['authorization']
+      assert_match(/key=value&oauth_consumer_key=consumer_key_86cad9&oauth_nonce=225579211881198842005988698334675835446&oauth_signature=26g7wHTtNO6ZWJaLltcueppHYiI%3[Dd]&oauth_signature_method=HMAC-SHA1&oauth_timestamp=1199645624&oauth_token=token_411a7f&oauth_version=1.0/, request.body.split("&").sort.join("&"))
+      assert_nil request['authorization']
     end
 
     def test_that_using_auth_headers_on_get_on_create_signed_requests_works
@@ -111,8 +111,8 @@ module Integration
 
       assert_equal 'POST', request.method
       assert_equal '/test', request.path
-      assert_match /key=value&oauth_consumer_key=consumer_key_86cad9&oauth_nonce=225579211881198842005988698334675835446&oauth_signature=26g7wHTtNO6ZWJaLltcueppHYiI%3[Dd]&oauth_signature_method=HMAC-SHA1&oauth_timestamp=1199645624&oauth_token=token_411a7f&oauth_version=1.0/, request.body.split("&").sort.join("&")
-      assert_equal nil, request['authorization']
+      assert_match(/key=value&oauth_consumer_key=consumer_key_86cad9&oauth_nonce=225579211881198842005988698334675835446&oauth_signature=26g7wHTtNO6ZWJaLltcueppHYiI%3[Dd]&oauth_signature_method=HMAC-SHA1&oauth_timestamp=1199645624&oauth_token=token_411a7f&oauth_version=1.0/, request.body.split("&").sort.join("&"))
+      assert_nil request['authorization']
     end
 
     def test_step_by_step_token_request
@@ -136,7 +136,7 @@ module Integration
       @consumer.sign!(request, nil,options)
 
       assert_equal 'GET', request.method
-      assert_equal nil, request.body
+      assert_nil request.body
       response=@consumer.http.request(request)
       assert_equal "200",response.code
       assert_equal "oauth_token=requestkey&oauth_token_secret=requestsecret",response.body
@@ -162,23 +162,23 @@ module Integration
       assert !@consumer.authorize_url?, "Should not use fully qualified url"
 
       @request_token=@consumer.get_request_token
-      assert_not_nil @request_token
+      assert @request_token
       assert_equal "requestkey",@request_token.token
       assert_equal "requestsecret",@request_token.secret
       assert_equal "http://term.ie/oauth/example/authorize.php?oauth_token=requestkey",@request_token.authorize_url
 
       @access_token=@request_token.get_access_token
-      assert_not_nil @access_token
+      assert @access_token
       assert_equal "accesskey",@access_token.token
       assert_equal "accesssecret",@access_token.secret
 
       @response=@access_token.get("/oauth/example/echo_api.php?ok=hello&test=this")
-      assert_not_nil @response
+      assert @response
       assert_equal "200",@response.code
       assert_equal( "ok=hello&test=this",@response.body)
 
       @response=@access_token.post("/oauth/example/echo_api.php",{'ok'=>'hello','test'=>'this'})
-      assert_not_nil @response
+      assert @response
       assert_equal "200",@response.code
       assert_equal( "ok=hello&test=this",@response.body)
     end
@@ -203,23 +203,23 @@ module Integration
       assert @consumer.authorize_url?, "Should use fully qualified url"
 
       @request_token=@consumer.get_request_token
-      assert_not_nil @request_token
+      assert @request_token
       assert_equal "requestkey",@request_token.token
       assert_equal "requestsecret",@request_token.secret
       assert_equal "http://term.ie/oauth/example/authorize.php?oauth_token=requestkey",@request_token.authorize_url
 
       @access_token=@request_token.get_access_token
-      assert_not_nil @access_token
+      assert @access_token
       assert_equal "accesskey",@access_token.token
       assert_equal "accesssecret",@access_token.secret
 
       @response=@access_token.get("/oauth/example/echo_api.php?ok=hello&test=this")
-      assert_not_nil @response
+      assert @response
       assert_equal "200",@response.code
       assert_equal( "ok=hello&test=this",@response.body)
 
       @response=@access_token.post("/oauth/example/echo_api.php",{'ok'=>'hello','test'=>'this'})
-      assert_not_nil @response
+      assert @response
       assert_equal "200",@response.code
       assert_equal( "ok=hello&test=this",@response.body)
     end
@@ -283,13 +283,13 @@ module Integration
       request_body_stream = StringIO.new( request_body_string )
 
       @response=@access_token.post("/oauth/example/echo_api.php",request_body_stream)
-      assert_not_nil @response
+      assert @response
       assert_equal "200",@response.code
 
       request_body_file = File.open(__FILE__)
 
       @response=@access_token.post("/oauth/example/echo_api.php",request_body_file)
-      assert_not_nil @response
+      assert @response
       assert_equal "200",@response.code
 
       # unfortunately I don't know of a way to test that the body data was received correctly since the test server at http://term.ie

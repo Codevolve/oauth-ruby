@@ -1,11 +1,9 @@
-$LOAD_PATH << File.dirname(__FILE__) unless $LOAD_PATH.include?(File.dirname(__FILE__))
+root = File.dirname(__FILE__)
+$LOAD_PATH << root unless $LOAD_PATH.include?(root)
 
-module OAuth
-  VERSION = "0.4.7"
-end
+require 'oauth/version'
 
 require 'oauth/oauth'
-require 'oauth/core_ext'
 
 require 'oauth/client/helper'
 require 'oauth/signature/hmac/sha1'

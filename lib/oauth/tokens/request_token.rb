@@ -5,6 +5,8 @@ module OAuth
 
     # Generate an authorization URL for user authorization
     def authorize_url(params = nil)
+      return nil if self.token.nil?
+
       params = (params || {}).merge(:oauth_token => self.token)
       build_authorize_url(consumer.authorize_url, params)
     end
@@ -24,8 +26,11 @@ module OAuth
     # construct an authorization url
     def build_authorize_url(base_url, params)
       uri = URI.parse(base_url.to_s)
+      queries = {}
+      queries = Hash[URI.decode_www_form(uri.query)] if uri.query
       # TODO doesn't handle array values correctly
-      uri.query = params.map { |k,v| [k, CGI.escape(v)] * "=" } * "&"
+      queries.merge!(params) if params
+      uri.query = URI.encode_www_form(queries) if !queries.empty?
       uri.to_s
     end
   end
